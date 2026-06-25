@@ -1,6 +1,7 @@
 import 'package:billing_app/core/widgets/input_label.dart';
 import 'package:billing_app/core/widgets/primary_button.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../domain/entities/shop.dart';
@@ -152,10 +153,78 @@ class _ShopDetailsPageState extends State<ShopDetailsPage> {
                       validator: AppValidators.required('Required'),
                     ),
                     const SizedBox(height: 15),
-                    const InputLabel(text: 'UPI ID'),
-                    _buildTextField(
-                      controller: _upiController,
-                      hint: 'dineshsowndar@oksbi',
+                    const InputLabel(text: 'String QRIS (Opsional)'),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _upiController,
+                            hint: '00020101021226...',
+                            maxLines: 3,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: IconButton(
+                              icon: const Icon(Icons.qr_code_scanner,
+                                  color: AppTheme.primaryColor),
+                              tooltip: 'Scan QRIS',
+                              onPressed: () async {
+                                final result =
+                                    await context.push<String>('/scanner');
+                                if (result != null && result.isNotEmpty) {
+                                  _upiController.text = result;
+                                }
+                              },
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: Colors.blue.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.info_outline,
+                                  size: 14, color: Colors.blue),
+                              SizedBox(width: 6),
+                              Text('Cara mendapatkan String QRIS:',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.blue)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '1. Buka aplikasi bank / e-wallet kamu (BCA, Mandiri, GoPay, OVO, Dana, dll)\n'
+                            '2. Buka menu QRIS Merchant / Terima Pembayaran\n'
+                            '3. Tap "Bagikan" atau "Unduh" kode QR\n'
+                            '4. Scan kode QR tersebut dengan scanner di app ini untuk mendapatkan string-nya\n'
+                            '5. Tempel string di sini',
+                            style:
+                                TextStyle(fontSize: 11, color: Colors.grey[700]),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 15),
                     Row(

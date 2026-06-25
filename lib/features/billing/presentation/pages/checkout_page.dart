@@ -337,14 +337,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         const Text('Scan QRIS untuk Bayar',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.w600)),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Total: ${_fmt.format(billingState.totalAmount)}',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey[600]),
+                                        ),
                                         const SizedBox(height: 8),
                                         SizedBox(
                                           width: 160,
                                           height: 160,
                                           child: PrettyQrView.data(
-                                            data:
-                                                'upi://pay?pa=$upiId&pn=$shopName&am=${billingState.totalAmount.toStringAsFixed(0)}&cu=IDR',
+                                            data: upiId,
                                           ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Masukkan jumlah di aplikasi pembayaran',
+                                          style: TextStyle(
+                                              fontSize: 10,
+                                              color: Colors.grey[500]),
                                         ),
                                       ],
                                     ),
