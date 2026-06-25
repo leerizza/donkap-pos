@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
             create: (context) => di.sl<TransactionBloc>()),
       ],
       child: MaterialApp.router(
-        title: 'Billing App',
+        title: 'Donkap POS',
         theme: AppTheme.lightTheme,
         routerConfig: router,
         debugShowCheckedModeBanner: false,
