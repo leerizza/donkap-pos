@@ -37,7 +37,7 @@ class TransactionBloc extends Bloc<TransactionEvent, TransactionState> {
     final result = await saveTransactionUseCase(event.transaction);
     result.fold(
       (failure) => emit(TransactionError(failure.message)),
-      (_) => emit(TransactionSaved()),
+      (_) => add(const LoadTransactionsEvent()),
     );
   }
 

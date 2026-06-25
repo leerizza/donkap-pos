@@ -154,7 +154,7 @@ class _AddProductPageState extends State<AddProductPage> {
                       hintText: '0',
                       suffixText: 'pcs',
                     ),
-                    validator: AppValidators.required('Masukkan jumlah stok'),
+                    validator: AppValidators.stockCount,
                     onSaved: (value) =>
                         _stock = int.tryParse(value ?? '0') ?? 0,
                   ),

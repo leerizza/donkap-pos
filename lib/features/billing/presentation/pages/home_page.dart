@@ -7,6 +7,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_constants.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../domain/entities/cart_item.dart';
 
@@ -342,7 +343,7 @@ class _HomePageState extends State<HomePage> {
           BlocBuilder<ProductBloc, ProductState>(
             builder: (context, productState) {
               final lowStockCount = productState.products
-                  .where((p) => p.stock <= 5)
+                  .where((p) => p.stock <= AppConstants.lowStockThreshold)
                   .length;
               if (lowStockCount == 0) return const SizedBox.shrink();
               return GestureDetector(

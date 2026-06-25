@@ -17,6 +17,16 @@ class SalesReportPage extends StatefulWidget {
 class _SalesReportPageState extends State<SalesReportPage> {
   _DateFilter _filter = _DateFilter.today;
 
+  static const _filterLabels = {
+    _DateFilter.today: 'Hari Ini',
+    _DateFilter.week: 'Minggu Ini',
+    _DateFilter.month: 'Bulan Ini',
+    _DateFilter.all: 'Semua',
+  };
+
+  static final _rupiahFormatter =
+      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
   @override
   void initState() {
     super.initState();
@@ -32,7 +42,8 @@ class _SalesReportPageState extends State<SalesReportPage> {
               t.createdAt.day == now.day;
         }).toList(),
       _DateFilter.week => all.where((t) {
-          return now.difference(t.createdAt).inDays < 7;
+          final diff = now.difference(t.createdAt).inDays;
+          return diff >= 0 && diff < 7;
         }).toList(),
       _DateFilter.month => all.where((t) {
           return t.createdAt.year == now.year &&
@@ -61,8 +72,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
             return Center(child: Text(state.message));
           }
 
-          final all = state is TransactionLoaded ? state.transactions : [];
-          final filtered = _applyFilter(all.cast<Transaction>());
+          final List<Transaction> all =
+              state is TransactionLoaded ? state.transactions : const [];
+          final filtered = _applyFilter(all);
 
           final totalRevenue =
               filtered.fold<double>(0, (sum, t) => sum + t.totalAmount);
@@ -79,16 +91,10 @@ class _SalesReportPageState extends State<SalesReportPage> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   children: _DateFilter.values.map((f) {
-                    final labels = {
-                      _DateFilter.today: 'Hari Ini',
-                      _DateFilter.week: 'Minggu Ini',
-                      _DateFilter.month: 'Bulan Ini',
-                      _DateFilter.all: 'Semua',
-                    };
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(labels[f]!,
+                        label: Text(_filterLabels[f]!,
                             style: const TextStyle(fontSize: 12)),
                         selected: _filter == f,
                         onSelected: (_) => setState(() => _filter = f),
@@ -106,7 +112,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                     Expanded(
                       child: _SummaryCard(
                         label: 'Total Pendapatan',
-                        value: _formatRupiah(totalRevenue),
+                        value: _rupiahFormatter.format(totalRevenue),
                         icon: Icons.payments_outlined,
                         color: const Color(0xFF10B981),
                       ),
@@ -155,10 +161,9 @@ class _SalesReportPageState extends State<SalesReportPage> {
                         itemBuilder: (context, index) {
                           return _TransactionCard(
                             transaction: filtered[index],
-                            onDelete: () {
-                              _confirmDelete(
-                                  context, filtered[index].id);
-                            },
+                            formatter: _rupiahFormatter,
+                            onDelete: () =>
+                                _confirmDelete(context, filtered[index].id),
                           );
                         },
                       ),
@@ -170,35 +175,28 @@ class _SalesReportPageState extends State<SalesReportPage> {
     );
   }
 
-  void _confirmDelete(BuildContext context, String id) {
+  void _confirmDelete(BuildContext outerContext, String id) {
     showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
+      context: outerContext,
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Hapus Transaksi'),
         content: const Text('Yakin ingin menghapus transaksi ini?'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Batal')),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              context
+              Navigator.pop(dialogContext);
+              outerContext
                   .read<TransactionBloc>()
                   .add(DeleteTransactionEvent(id));
             },
-            child:
-                const Text('Hapus', style: TextStyle(color: Colors.red)),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
     );
-  }
-
-  String _formatRupiah(double amount) {
-    final formatter =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
-    return formatter.format(amount);
   }
 }
 
@@ -248,19 +246,21 @@ class _SummaryCard extends StatelessWidget {
 
 class _TransactionCard extends StatelessWidget {
   final Transaction transaction;
+  final NumberFormat formatter;
   final VoidCallback onDelete;
 
   const _TransactionCard({
     required this.transaction,
+    required this.formatter,
     required this.onDelete,
   });
 
   @override
   Widget build(BuildContext context) {
-    final formatter =
-        NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final dateStr =
         DateFormat('dd MMM yyyy, HH:mm').format(transaction.createdAt);
+    final totalItems =
+        transaction.items.fold<int>(0, (s, i) => s + i.quantity);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -291,7 +291,7 @@ class _TransactionCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${transaction.items.fold<int>(0, (s, i) => s + i.quantity)} item',
+              '$totalItems item',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             IconButton(

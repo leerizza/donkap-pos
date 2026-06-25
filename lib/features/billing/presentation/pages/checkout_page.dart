@@ -54,8 +54,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                     content: Text('Printed successfully'),
                     backgroundColor: Colors.green));
-                // context.read<BillingBloc>().add(ClearCartEvent());
-                // context.go('/');
               }
             },
             builder: (context, billingState) {
@@ -299,14 +297,16 @@ class _CheckoutPageState extends State<CheckoutPage> {
       totalAmount: billingState.totalAmount,
     );
 
-    // Deduct stock for each item
+    // Deduct stock for each item, clamped to 0
     for (final cartItem in billingState.cartItems) {
+      final newStock =
+          (cartItem.product.stock - cartItem.quantity).clamp(0, double.maxFinite.toInt());
       final updatedProduct = Product(
         id: cartItem.product.id,
         name: cartItem.product.name,
         barcode: cartItem.product.barcode,
         price: cartItem.product.price,
-        stock: cartItem.product.stock - cartItem.quantity,
+        stock: newStock,
       );
       context.read<ProductBloc>().add(UpdateProduct(updatedProduct));
     }

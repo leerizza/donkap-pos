@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../bloc/product_bloc.dart';
 import '../../domain/entities/product.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_constants.dart';
 import '../../../../core/utils/app_validators.dart';
 
 class ProductListPage extends StatefulWidget {
@@ -18,7 +19,7 @@ class _ProductListPageState extends State<ProductListPage> {
   String _searchQuery = '';
   bool _showLowStockOnly = false;
 
-  static const int _lowStockThreshold = 5;
+  static const int _lowStockThreshold = AppConstants.lowStockThreshold;
 
   @override
   void initState() {
@@ -154,6 +155,12 @@ class _ProductListPageState extends State<ProductListPage> {
                     .where((p) => p.stock <= _lowStockThreshold)
                     .length;
 
+                // Reset filter if no low-stock products remain (chip will be hidden)
+                if (lowStockCount == 0 && _showLowStockOnly) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                      (_) => setState(() => _showLowStockOnly = false));
+                }
+
                 var filteredProducts = state.products
                     .where((product) =>
                         product.name.toLowerCase().contains(_searchQuery) ||
@@ -167,8 +174,10 @@ class _ProductListPageState extends State<ProductListPage> {
                 }
 
                 if (filteredProducts.isEmpty) {
-                  return const Center(
-                      child: Text('No products match your search.'));
+                  return Center(
+                      child: Text(_showLowStockOnly
+                          ? 'Tidak ada produk dengan stok menipis.'
+                          : 'No products match your search.'));
                 }
 
                 return Column(

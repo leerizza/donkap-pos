@@ -141,7 +141,7 @@ class _EditProductPageState extends State<EditProductPage> {
                     decoration: const InputDecoration(
                       suffixText: 'pcs',
                     ),
-                    validator: AppValidators.required('Masukkan jumlah stok'),
+                    validator: AppValidators.stockCount,
                     onSaved: (value) =>
                         _stock = int.tryParse(value ?? '0') ?? 0,
                   ),
