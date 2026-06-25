@@ -285,14 +285,51 @@ class _TransactionCard extends StatelessWidget {
           formatter.format(transaction.totalAmount),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        subtitle: Text(dateStr,
-            style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (transaction.invoiceNumber.isNotEmpty)
+              Text(transaction.invoiceNumber,
+                  style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontFamily: 'monospace')),
+            Text(dateStr,
+                style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          ],
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              '$totalItems item',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text('$totalItems item',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: transaction.paymentMethod == PaymentMethod.cash
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.blue.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    transaction.paymentMethod == PaymentMethod.cash
+                        ? 'Tunai'
+                        : 'QRIS',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: transaction.paymentMethod == PaymentMethod.cash
+                          ? Colors.green[700]
+                          : Colors.blue[700],
+                    ),
+                  ),
+                ),
+              ],
             ),
             IconButton(
               icon: const Icon(Icons.delete_outline,

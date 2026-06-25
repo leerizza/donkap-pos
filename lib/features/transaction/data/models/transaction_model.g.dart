@@ -21,13 +21,16 @@ class TransactionModelAdapter extends TypeAdapter<TransactionModel> {
       createdAtMs: fields[1] as int,
       itemModels: (fields[2] as List).cast<TransactionItemModel>(),
       totalAmount: fields[3] as double,
+      invoiceNumberRaw: fields[4] as String?,
+      paymentMethodRaw: fields[5] as String?,
+      cashReceivedRaw: fields[6] as double?,
     );
   }
 
   @override
   void write(BinaryWriter writer, TransactionModel obj) {
     writer
-      ..writeByte(4)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -35,7 +38,13 @@ class TransactionModelAdapter extends TypeAdapter<TransactionModel> {
       ..writeByte(2)
       ..write(obj.itemModels)
       ..writeByte(3)
-      ..write(obj.totalAmount);
+      ..write(obj.totalAmount)
+      ..writeByte(4)
+      ..write(obj.invoiceNumberRaw)
+      ..writeByte(5)
+      ..write(obj.paymentMethodRaw)
+      ..writeByte(6)
+      ..write(obj.cashReceivedRaw);
   }
 
   @override

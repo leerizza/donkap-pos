@@ -36,16 +36,27 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
 
   void _onAddProductToCart(
       AddProductToCartEvent event, Emitter<BillingState> emit) {
-    // Clear error when adding
     final cleanState = state.copyWith(error: null);
 
     final existingIndex = cleanState.cartItems
         .indexWhere((item) => item.product.id == event.product.id);
+
+    final currentQty =
+        existingIndex >= 0 ? cleanState.cartItems[existingIndex].quantity : 0;
+
+    // Block oversell: only enforce if stock is tracked (> 0)
+    if (event.product.stock > 0 && currentQty + 1 > event.product.stock) {
+      emit(cleanState.copyWith(
+          error:
+              'Stok tidak cukup. Sisa stok: ${event.product.stock - currentQty}',
+          clearError: false));
+      return;
+    }
+
     if (existingIndex >= 0) {
-      final existingItem = cleanState.cartItems[existingIndex];
       final backendItems = List<CartItem>.from(cleanState.cartItems);
-      backendItems[existingIndex] =
-          existingItem.copyWith(quantity: existingItem.quantity + 1);
+      backendItems[existingIndex] = cleanState.cartItems[existingIndex]
+          .copyWith(quantity: currentQty + 1);
       emit(cleanState.copyWith(cartItems: backendItems, error: null));
     } else {
       final newItem = CartItem(product: event.product);
@@ -71,6 +82,16 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
 
     final index = state.cartItems
         .indexWhere((item) => item.product.id == event.productId);
+
+    if (index >= 0) {
+      final product = state.cartItems[index].product;
+      if (product.stock > 0 && event.quantity > product.stock) {
+        emit(state.copyWith(
+            error: 'Stok tidak cukup. Sisa stok: ${product.stock}',
+            clearError: false));
+        return;
+      }
+    }
     if (index >= 0) {
       final items = List<CartItem>.from(state.cartItems);
       items[index] = items[index].copyWith(quantity: event.quantity);
@@ -125,7 +146,11 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
           phone: event.phone,
           items: items,
           total: state.totalAmount,
-          footer: event.footer);
+          footer: event.footer,
+          invoiceNumber: event.invoiceNumber,
+          paymentMethod: event.paymentMethod,
+          cashReceived: event.cashReceived,
+          change: event.change);
 
       emit(state.copyWith(isPrinting: false, printSuccess: true));
     } catch (e) {

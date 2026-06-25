@@ -20,16 +20,33 @@ class TransactionModel extends Transaction {
   @HiveField(3)
   final double totalAmount;
 
+  @HiveField(4)
+  final String? invoiceNumberRaw;
+
+  @HiveField(5)
+  final String? paymentMethodRaw;
+
+  @HiveField(6)
+  final double? cashReceivedRaw;
+
   TransactionModel({
     required this.id,
     required this.createdAtMs,
     required this.itemModels,
     required this.totalAmount,
+    this.invoiceNumberRaw,
+    this.paymentMethodRaw,
+    this.cashReceivedRaw,
   }) : super(
           id: id,
+          invoiceNumber: invoiceNumberRaw ?? '',
           createdAt: DateTime.fromMillisecondsSinceEpoch(createdAtMs),
           items: itemModels,
           totalAmount: totalAmount,
+          paymentMethod: paymentMethodRaw == 'cash'
+              ? PaymentMethod.cash
+              : PaymentMethod.qris,
+          cashReceived: cashReceivedRaw ?? 0,
         );
 
   factory TransactionModel.fromEntity(Transaction tx) {
@@ -38,6 +55,9 @@ class TransactionModel extends Transaction {
       createdAtMs: tx.createdAt.millisecondsSinceEpoch,
       itemModels: tx.items.map(TransactionItemModel.fromEntity).toList(),
       totalAmount: tx.totalAmount,
+      invoiceNumberRaw: tx.invoiceNumber,
+      paymentMethodRaw: tx.paymentMethod.name,
+      cashReceivedRaw: tx.cashReceived,
     );
   }
 }

@@ -108,26 +108,28 @@ class PrinterHelper {
     required String address1,
     required String address2,
     required String phone,
-    required List<Map<String, dynamic>> items, // Name, Qty, Price, Total
+    required List<Map<String, dynamic>> items,
     required double total,
     required String footer,
+    String invoiceNumber = '',
+    String paymentMethod = 'QRIS',
+    double cashReceived = 0,
+    double change = 0,
   }) async {
     if (!_isConnected) return;
 
-    // Construct ESC/POS bytes manually or using helper
     List<int> bytes = [];
 
-    // Init
     bytes += EscPos.init;
 
-    // Shop Name (Center, Bold, Large)
+    // Shop Name
     bytes += EscPos.alignCenter;
     bytes += EscPos.boldOn;
     bytes += EscPos.textLarge;
     bytes += _textToBytes(shopName);
     bytes += EscPos.lineFeed;
 
-    // Address & Phone (Normal, Center)
+    // Address & Phone
     bytes += EscPos.textNormal;
     bytes += EscPos.boldOff;
     if (address1.isNotEmpty) {
@@ -138,21 +140,29 @@ class PrinterHelper {
       bytes += _textToBytes(address2);
       bytes += EscPos.lineFeed;
     }
-    bytes += _textToBytes(phone);
+    if (phone.isNotEmpty) {
+      bytes += _textToBytes(phone);
+      bytes += EscPos.lineFeed;
+    }
+
+    bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
 
-    // Date and Time
+    // Invoice number & date
+    bytes += EscPos.alignLeft;
+    if (invoiceNumber.isNotEmpty) {
+      bytes += _textToBytes('No: $invoiceNumber');
+      bytes += EscPos.lineFeed;
+    }
     String formattedDate =
-        DateFormat('dd-MM-yyyy hh:mm a').format(DateTime.now());
+        DateFormat('dd-MM-yyyy HH:mm').format(DateTime.now());
     bytes += _textToBytes(formattedDate);
     bytes += EscPos.lineFeed;
 
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
 
-    // Header (Align Left)
-    bytes += EscPos.alignLeft;
-    bytes += _textToBytes('Item            Price   Total');
+    bytes += _textToBytes('Item            Harga   Total');
     bytes += EscPos.lineFeed;
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
@@ -175,21 +185,35 @@ class PrinterHelper {
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
 
-    // Total (Align Right)
+    // Total
     bytes += EscPos.alignRight;
     bytes += EscPos.boldOn;
     bytes += _textToBytes('TOTAL: Rp $total');
     bytes += EscPos.lineFeed;
     bytes += EscPos.boldOff;
+
+    // Payment info
+    bytes += EscPos.alignLeft;
+    bytes += _textToBytes('Pembayaran: $paymentMethod');
+    bytes += EscPos.lineFeed;
+    if (paymentMethod == 'Tunai') {
+      bytes += _textToBytes('Diterima : Rp ${cashReceived.toStringAsFixed(0)}');
+      bytes += EscPos.lineFeed;
+      bytes += EscPos.boldOn;
+      bytes += _textToBytes('Kembalian: Rp ${change.toStringAsFixed(0)}');
+      bytes += EscPos.boldOff;
+      bytes += EscPos.lineFeed;
+    }
+
     bytes += EscPos.lineFeed;
 
-    // Footer (Center)
+    // Footer
     bytes += EscPos.alignCenter;
     bytes += _textToBytes(footer);
     bytes += EscPos.lineFeed;
-    bytes += EscPos.lineFeed; // One line space after footer
     bytes += EscPos.lineFeed;
-    bytes += EscPos.lineFeed; // Additional Feed
+    bytes += EscPos.lineFeed;
+    bytes += EscPos.lineFeed;
 
     await PrintBluetoothThermal.writeBytes(bytes);
   }
