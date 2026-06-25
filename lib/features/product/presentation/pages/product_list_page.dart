@@ -16,6 +16,9 @@ class ProductListPage extends StatefulWidget {
 class _ProductListPageState extends State<ProductListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  bool _showLowStockOnly = false;
+
+  static const int _lowStockThreshold = 5;
 
   @override
   void initState() {
@@ -147,102 +150,207 @@ class _ProductListPageState extends State<ProductListPage> {
                       child: Text('No products found. Add some!'));
                 }
 
-                final filteredProducts = state.products
+                final lowStockCount = state.products
+                    .where((p) => p.stock <= _lowStockThreshold)
+                    .length;
+
+                var filteredProducts = state.products
                     .where((product) =>
                         product.name.toLowerCase().contains(_searchQuery) ||
                         product.barcode.toLowerCase().contains(_searchQuery))
                     .toList();
+
+                if (_showLowStockOnly) {
+                  filteredProducts = filteredProducts
+                      .where((p) => p.stock <= _lowStockThreshold)
+                      .toList();
+                }
 
                 if (filteredProducts.isEmpty) {
                   return const Center(
                       child: Text('No products match your search.'));
                 }
 
-                return ListView.separated(
-                  padding: const EdgeInsets.only(
-                      left: 16, right: 16, top: 8, bottom: 100),
-                  itemCount: filteredProducts.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final product = filteredProducts[index];
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: borderColor),
-                        boxShadow: const [
-                          BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 4,
-                              offset: Offset(0, 2))
-                        ],
+                return Column(
+                  children: [
+                    // Low stock filter chip
+                    if (lowStockCount > 0)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 4),
+                        child: Row(
+                          children: [
+                            FilterChip(
+                              label: Text(
+                                  'Stok Menipis ($lowStockCount)',
+                                  style: const TextStyle(fontSize: 12)),
+                              selected: _showLowStockOnly,
+                              selectedColor:
+                                  Colors.red.withValues(alpha: 0.15),
+                              checkmarkColor: Colors.red,
+                              labelStyle: TextStyle(
+                                color: _showLowStockOnly
+                                    ? Colors.red
+                                    : Colors.black87,
+                              ),
+                              onSelected: (val) =>
+                                  setState(() => _showLowStockOnly = val),
+                            ),
+                          ],
+                        ),
                       ),
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  product.name,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Rp ${product.price.toStringAsFixed(2)}',
-                                  style: TextStyle(
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey[600]),
-                                ),
+                    Expanded(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.only(
+                            left: 16, right: 16, top: 8, bottom: 100),
+                        itemCount: filteredProducts.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final product = filteredProducts[index];
+                          final stockColor = _stockColor(product.stock);
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: product.stock <= _lowStockThreshold
+                                    ? Colors.red.withValues(alpha: 0.3)
+                                    : borderColor,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2))
                               ],
                             ),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        product.name,
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 16),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Rp ${product.price.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.grey[600]),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: stockColor
+                                                  .withValues(alpha: 0.12),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.inventory_2_outlined,
+                                                  size: 12,
+                                                  color: stockColor,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  'Stok: ${product.stock}',
+                                                  style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: stockColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                          if (product.stock <= _lowStockThreshold)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  left: 6),
+                                              child: Text(
+                                                product.stock <= 0
+                                                    ? 'Habis!'
+                                                    : 'Menipis!',
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: Colors.red,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.edit_rounded,
-                                      color: AppTheme.primaryColor, size: 20),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(8),
-                                  onPressed: () {
-                                    context.push('/products/edit/${product.id}',
-                                        extra: product);
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.red.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded,
-                                      color: Colors.red, size: 20),
-                                  constraints: const BoxConstraints(),
-                                  padding: const EdgeInsets.all(8),
-                                  onPressed: () =>
-                                      _confirmDelete(context, product),
-                                ),
-                              ),
-                            ],
-                          )
-                        ],
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor
+                                            .withValues(alpha: 0.1),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(Icons.edit_rounded,
+                                            color: AppTheme.primaryColor,
+                                            size: 20),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(8),
+                                        onPressed: () {
+                                          context.push(
+                                              '/products/edit/${product.id}',
+                                              extra: product);
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.red.withValues(alpha: 0.1),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                            Icons.delete_outline_rounded,
+                                            color: Colors.red,
+                                            size: 20),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(8),
+                                        onPressed: () =>
+                                            _confirmDelete(context, product),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 );
               },
             ),
@@ -257,6 +365,12 @@ class _ProductListPageState extends State<ProductListPage> {
         child: const Icon(Icons.add, size: 32),
       ),
     );
+  }
+
+  Color _stockColor(int stock) {
+    if (stock <= 0) return Colors.red;
+    if (stock <= _lowStockThreshold) return Colors.orange;
+    return Colors.green;
   }
 
   void _confirmDelete(BuildContext context, Product product) {

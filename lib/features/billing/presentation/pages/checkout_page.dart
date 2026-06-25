@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../product/domain/entities/product.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../../../transaction/domain/entities/transaction.dart';
 import '../../../transaction/domain/entities/transaction_item.dart';
@@ -296,6 +298,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
           .toList(),
       totalAmount: billingState.totalAmount,
     );
+
+    // Deduct stock for each item
+    for (final cartItem in billingState.cartItems) {
+      final updatedProduct = Product(
+        id: cartItem.product.id,
+        name: cartItem.product.name,
+        barcode: cartItem.product.barcode,
+        price: cartItem.product.price,
+        stock: cartItem.product.stock - cartItem.quantity,
+      );
+      context.read<ProductBloc>().add(UpdateProduct(updatedProduct));
+    }
 
     context.read<TransactionBloc>().add(SaveTransactionEvent(transaction));
     context.read<BillingBloc>().add(ClearCartEvent());

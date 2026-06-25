@@ -5,6 +5,7 @@ import 'package:vibration/vibration.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../billing/presentation/bloc/billing_bloc.dart';
+import '../../../product/presentation/bloc/product_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/primary_button.dart';
 import '../../domain/entities/cart_item.dart';
@@ -335,6 +336,49 @@ class _HomePageState extends State<HomePage> {
               color: Colors.grey.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
+          ),
+
+          // Low stock warning banner
+          BlocBuilder<ProductBloc, ProductState>(
+            builder: (context, productState) {
+              final lowStockCount = productState.products
+                  .where((p) => p.stock <= 5)
+                  .length;
+              if (lowStockCount == 0) return const SizedBox.shrink();
+              return GestureDetector(
+                onTap: () => context.push('/products'),
+                child: Container(
+                  margin:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                        color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded,
+                          color: Colors.red, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '$lowStockCount produk stok menipis — tap untuk lihat',
+                          style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.red,
+                              fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right,
+                          color: Colors.red, size: 16),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
 
           // Header
