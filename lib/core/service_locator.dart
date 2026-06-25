@@ -10,6 +10,10 @@ import '../../features/shop/presentation/bloc/shop_bloc.dart';
 import '../../features/settings/data/repositories/printer_repository_impl.dart';
 import '../../features/settings/domain/repositories/printer_repository.dart';
 import '../../features/settings/presentation/bloc/printer_bloc.dart';
+import '../../features/transaction/data/repositories/transaction_repository_impl.dart';
+import '../../features/transaction/domain/repositories/transaction_repository.dart';
+import '../../features/transaction/domain/usecases/transaction_usecases.dart';
+import '../../features/transaction/presentation/bloc/transaction_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -63,5 +67,22 @@ Future<void> init() async {
   // Features - Settings / Printer
   sl.registerLazySingleton<PrinterRepository>(
     () => PrinterRepositoryImpl(),
+  );
+
+  // Features - Transaction
+  sl.registerFactory(
+    () => TransactionBloc(
+      saveTransactionUseCase: sl(),
+      getTransactionsUseCase: sl(),
+      deleteTransactionUseCase: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton(() => SaveTransactionUseCase(sl()));
+  sl.registerLazySingleton(() => GetTransactionsUseCase(sl()));
+  sl.registerLazySingleton(() => DeleteTransactionUseCase(sl()));
+
+  sl.registerLazySingleton<TransactionRepository>(
+    () => TransactionRepositoryImpl(),
   );
 }

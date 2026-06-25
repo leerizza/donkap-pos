@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../shop/presentation/bloc/shop_bloc.dart';
+import '../../../transaction/domain/entities/transaction.dart';
+import '../../../transaction/domain/entities/transaction_item.dart';
+import '../../../transaction/presentation/bloc/transaction_bloc.dart';
 import '../bloc/billing_bloc.dart';
 
 class CheckoutPage extends StatefulWidget {
@@ -120,11 +124,11 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             TextAlign.left,
                                           ),
                                           _buildDataCell(
-                                              '₹${item.product.price.toStringAsFixed(2)}',
+                                              'Rp ${item.product.price.toStringAsFixed(2)}',
                                               TextAlign.right,
                                               isSubtitle: true),
                                           _buildDataCell(
-                                              '₹${item.total.toStringAsFixed(2)}',
+                                              'Rp ${item.total.toStringAsFixed(2)}',
                                               TextAlign.right,
                                               isBold: true),
                                         ],
@@ -188,7 +192,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                             height: 180,
                                             child: PrettyQrView.data(
                                               data:
-                                                  'upi://pay?pa=$upiId&pn=$shopName&am=${billingState.totalAmount.toStringAsFixed(2)}&cu=INR',
+                                                  'upi://pay?pa=$upiId&pn=$shopName&am=${billingState.totalAmount.toStringAsFixed(2)}&cu=IDR',
                                             ),
                                           ),
                                         ],
@@ -209,7 +213,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                     Text(
-                                      '₹${billingState.totalAmount.toStringAsFixed(2)}',
+                                      'Rp ${billingState.totalAmount.toStringAsFixed(2)}',
                                       style: const TextStyle(
                                         fontSize: 24,
                                         fontWeight: FontWeight.bold,
@@ -244,6 +248,28 @@ class _CheckoutPageState extends State<CheckoutPage> {
                             icon: Icons.print,
                             isLoading: billingState.isPrinting,
                           ),
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                left: 20, right: 20, bottom: 4),
+                            child: SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: billingState.cartItems.isEmpty
+                                    ? null
+                                    : () => _confirmCheckout(
+                                        context, billingState),
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Konfirmasi Pembayaran'),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius:
+                                          BorderRadius.circular(12)),
+                                ),
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -253,6 +279,27 @@ class _CheckoutPageState extends State<CheckoutPage> {
             },
           ),
         ));
+  }
+
+  void _confirmCheckout(BuildContext context, BillingState billingState) {
+    final transaction = Transaction(
+      id: const Uuid().v4(),
+      createdAt: DateTime.now(),
+      items: billingState.cartItems
+          .map((item) => TransactionItem(
+                productId: item.product.id,
+                productName: item.product.name,
+                price: item.product.price,
+                quantity: item.quantity,
+                total: item.total,
+              ))
+          .toList(),
+      totalAmount: billingState.totalAmount,
+    );
+
+    context.read<TransactionBloc>().add(SaveTransactionEvent(transaction));
+    context.read<BillingBloc>().add(ClearCartEvent());
+    context.go('/');
   }
 
   Widget _buildHeaderCell(String text, TextAlign align) {
