@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:pretty_qr_code/pretty_qr_code.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../../core/data/hive_database.dart';
@@ -79,12 +80,17 @@ class _CheckoutPageState extends State<CheckoutPage> {
       return;
     }
 
+    final shopState = context.read<ShopBloc>().state;
     final invoiceNumber = _nextInvoiceNumber();
+    final now = DateTime.now();
+    final change = _paymentMethod == PaymentMethod.cash
+        ? (_cashReceived - billingState.totalAmount).clamp(0.0, double.infinity)
+        : 0.0;
 
     final transaction = Transaction(
       id: const Uuid().v4(),
       invoiceNumber: invoiceNumber,
-      createdAt: DateTime.now(),
+      createdAt: now,
       items: billingState.cartItems
           .map((item) => TransactionItem(
                 productId: item.product.id,
@@ -99,23 +105,138 @@ class _CheckoutPageState extends State<CheckoutPage> {
       cashReceived: _cashReceived,
     );
 
-    // Deduct stock for each item, clamped to 0
     for (final cartItem in billingState.cartItems) {
       final newStock = (cartItem.product.stock - cartItem.quantity)
           .clamp(0, double.maxFinite.toInt());
-      final updatedProduct = Product(
+      context.read<ProductBloc>().add(UpdateProduct(Product(
         id: cartItem.product.id,
         name: cartItem.product.name,
         barcode: cartItem.product.barcode,
         price: cartItem.product.price,
         stock: newStock,
-      );
-      context.read<ProductBloc>().add(UpdateProduct(updatedProduct));
+      )));
     }
 
     context.read<TransactionBloc>().add(SaveTransactionEvent(transaction));
     context.read<BillingBloc>().add(ClearCartEvent());
-    context.go('/');
+
+    _showSuccessSheet(context, transaction, shopState, change);
+  }
+
+  void _showSuccessSheet(BuildContext context, Transaction transaction,
+      ShopState shopState, double change) {
+    showModalBottomSheet(
+      context: context,
+      isDismissible: false,
+      enableDrag: false,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green, size: 56),
+                const SizedBox(height: 12),
+                const Text('Transaksi Berhasil',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(
+                  _fmt.format(transaction.totalAmount),
+                  style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green),
+                ),
+                if (transaction.invoiceNumber.isNotEmpty)
+                  Text(transaction.invoiceNumber,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                          fontFamily: 'monospace')),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        _shareDigitalReceipt(transaction, shopState, change),
+                    icon: const Icon(Icons.share_outlined),
+                    label: const Text('Bagikan Struk Digital'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.go('/');
+                    },
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('Selesai'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _shareDigitalReceipt(
+      Transaction transaction, ShopState shopState, double change) async {
+    final shop = shopState is ShopLoaded ? shopState.shop : null;
+    final dateStr =
+        DateFormat('dd/MM/yyyy HH:mm').format(transaction.createdAt);
+    final sep = '─' * 32;
+
+    final buf = StringBuffer();
+    if (shop != null && shop.name.isNotEmpty) {
+      buf.writeln('🧾 *${shop.name.toUpperCase()}*');
+      if (shop.addressLine1.isNotEmpty) buf.writeln(shop.addressLine1);
+      if (shop.addressLine2.isNotEmpty) buf.writeln(shop.addressLine2);
+      if (shop.phoneNumber.isNotEmpty) buf.writeln(shop.phoneNumber);
+    }
+    buf.writeln(sep);
+    if (transaction.invoiceNumber.isNotEmpty) {
+      buf.writeln('No: ${transaction.invoiceNumber}');
+    }
+    buf.writeln(dateStr);
+    buf.writeln(sep);
+
+    for (final item in transaction.items) {
+      final itemTotal = _fmt.format(item.total);
+      buf.writeln('${item.quantity}x ${item.productName}');
+      buf.writeln('   ${_fmt.format(item.price)} x ${item.quantity} = $itemTotal');
+    }
+
+    buf.writeln(sep);
+    buf.writeln('*TOTAL: ${_fmt.format(transaction.totalAmount)}*');
+    buf.writeln(
+        'Pembayaran: ${transaction.paymentMethod == PaymentMethod.cash ? 'Tunai' : 'QRIS'}');
+    if (transaction.paymentMethod == PaymentMethod.cash) {
+      buf.writeln('Diterima : ${_fmt.format(transaction.cashReceived)}');
+      buf.writeln('*Kembalian: ${_fmt.format(change)}*');
+    }
+    buf.writeln(sep);
+    if (shop != null && shop.footerText.isNotEmpty) {
+      buf.writeln(shop.footerText);
+    }
+
+    await Share.share(buf.toString(), subject: 'Struk ${transaction.invoiceNumber}');
   }
 
   @override
