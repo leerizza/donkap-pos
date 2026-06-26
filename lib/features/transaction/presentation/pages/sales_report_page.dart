@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/utils/export_service.dart';
 import '../bloc/transaction_bloc.dart';
 import '../../domain/entities/transaction.dart';
 
@@ -16,6 +17,8 @@ class SalesReportPage extends StatefulWidget {
 
 class _SalesReportPageState extends State<SalesReportPage> {
   _DateFilter _filter = _DateFilter.today;
+  bool _exporting = false;
+  final _exportService = ExportService();
 
   static const _filterLabels = {
     _DateFilter.today: 'Hari Ini',
@@ -31,6 +34,69 @@ class _SalesReportPageState extends State<SalesReportPage> {
   void initState() {
     super.initState();
     context.read<TransactionBloc>().add(const LoadTransactionsEvent());
+  }
+
+  Future<void> _showExportSheet() async {
+    final state = context.read<TransactionBloc>().state;
+    final all =
+        state is TransactionLoaded ? state.transactions : <Transaction>[];
+    final filtered = _applyFilter(all);
+
+    if (filtered.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak ada data untuk diekspor')));
+      return;
+    }
+    final periodLabel = _filterLabels[_filter]!;
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            const Text('Ekspor Laporan',
+                style:
+                    TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            ListTile(
+              leading: const Icon(Icons.table_chart_outlined,
+                  color: Color(0xFF1D6F42)),
+              title: const Text('Excel (.xlsx)'),
+              subtitle: Text('${filtered.length} transaksi'),
+              onTap: () async {
+                Navigator.pop(context);
+                setState(() => _exporting = true);
+                await _exportService.exportExcel(filtered, periodLabel);
+                if (mounted) setState(() => _exporting = false);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.picture_as_pdf_outlined,
+                  color: Color(0xFFE53935)),
+              title: const Text('PDF'),
+              subtitle: Text('${filtered.length} transaksi'),
+              onTap: () async {
+                Navigator.pop(context);
+                setState(() => _exporting = true);
+                await _exportService.exportPdf(filtered, periodLabel);
+                if (mounted) setState(() => _exporting = false);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 
   List<Transaction> _applyFilter(List<Transaction> all) {
@@ -62,6 +128,22 @@ class _SalesReportPageState extends State<SalesReportPage> {
         centerTitle: true,
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          if (_exporting)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2)),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.ios_share_outlined),
+              tooltip: 'Ekspor',
+              onPressed: _showExportSheet,
+            ),
+        ],
       ),
       body: BlocBuilder<TransactionBloc, TransactionState>(
         builder: (context, state) {
