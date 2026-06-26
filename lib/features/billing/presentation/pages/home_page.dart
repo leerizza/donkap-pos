@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:vibration/vibration.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../billing/presentation/bloc/billing_bloc.dart';
 import '../../../product/presentation/bloc/product_bloc.dart';
+import '../../../transaction/presentation/bloc/transaction_bloc.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/app_constants.dart';
 import '../../../../core/widgets/primary_button.dart';
@@ -27,8 +29,16 @@ class _HomePageState extends State<HomePage> {
   bool _isCameraOn = true;
   bool _isFlashOn = false;
 
-  // Cooldown mapping to prevent rapid firing of the same barcode
+  static final _rupiahFmt =
+      NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
+
   final Map<String, DateTime> _lastScanTimes = {};
+
+  @override
+  void initState() {
+    super.initState();
+    context.read<TransactionBloc>().add(const LoadTransactionsEvent());
+  }
 
   @override
   void dispose() {
@@ -121,6 +131,103 @@ class _HomePageState extends State<HomePage> {
           label: 'Review Order',
         );
       }),
+    );
+  }
+
+  void _showProductSearchSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final products = context.read<ProductBloc>().state.products;
+            final filtered = query.isEmpty
+                ? products
+                : products
+                    .where((p) =>
+                        p.name.toLowerCase().contains(query.toLowerCase()) ||
+                        p.category.toLowerCase().contains(query.toLowerCase()))
+                    .toList();
+
+            return Padding(
+              padding: EdgeInsets.only(
+                  bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 12),
+                      decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 4),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (v) => setSheetState(() => query = v),
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama produk...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 320,
+                    child: filtered.isEmpty
+                        ? const Center(
+                            child: Text('Produk tidak ditemukan',
+                                style: TextStyle(color: Colors.grey)))
+                        : ListView.builder(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            itemCount: filtered.length,
+                            itemBuilder: (ctx, i) {
+                              final p = filtered[i];
+                              return ListTile(
+                                title: Text(p.name,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14)),
+                                subtitle: Text(
+                                  [
+                                    _rupiahFmt.format(p.price),
+                                    if (p.category.isNotEmpty) p.category,
+                                  ].join(' · '),
+                                  style: const TextStyle(fontSize: 12),
+                                ),
+                                trailing: Text('Stok: ${p.stock}',
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: p.stock <= 0
+                                            ? Colors.red
+                                            : Colors.grey[600])),
+                                onTap: () {
+                                  context
+                                      .read<BillingBloc>()
+                                      .add(AddProductToCartEvent(p));
+                                  Navigator.pop(ctx);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -339,6 +446,41 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
+          // Dashboard: hari ini
+          BlocBuilder<TransactionBloc, TransactionState>(
+            builder: (context, txState) {
+              if (txState is! TransactionLoaded) return const SizedBox.shrink();
+              final now = DateTime.now();
+              final todayTxs = txState.transactions.where((t) =>
+                  t.createdAt.year == now.year &&
+                  t.createdAt.month == now.month &&
+                  t.createdAt.day == now.day).toList();
+              final todayRevenue =
+                  todayTxs.fold(0.0, (s, t) => s + t.totalAmount);
+              return Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: Row(children: [
+                  Expanded(
+                    child: _buildStatCard(
+                      label: 'HARI INI',
+                      value: _rupiahFmt.format(todayRevenue),
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildStatCard(
+                      label: 'TRANSAKSI',
+                      value: '${todayTxs.length}x',
+                      color: const Color(0xFF6366F1),
+                    ),
+                  ),
+                ]),
+              );
+            },
+          ),
+
           // Low stock warning banner
           BlocBuilder<ProductBloc, ProductState>(
             builder: (context, productState) {
@@ -393,15 +535,35 @@ class _HomePageState extends State<HomePage> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    Row(
                       children: [
-                        const Text('Scanned Items',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w600)),
-                        Text('$totalItems items total',
-                            style: const TextStyle(
-                                fontSize: 12, color: Colors.grey)),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Scanned Items',
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600)),
+                            Text('$totalItems items total',
+                                style: const TextStyle(
+                                    fontSize: 12, color: Colors.grey)),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () => _showProductSearchSheet(context),
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor
+                                  .withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.search,
+                                color: AppTheme.primaryColor, size: 20),
+                          ),
+                        ),
                       ],
                     ),
                     Column(
@@ -453,6 +615,33 @@ class _HomePageState extends State<HomePage> {
               ),
             ]),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatCard(
+      {required String label, required String value, required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[500],
+                  letterSpacing: 1)),
+          const SizedBox(height: 2),
+          Text(value,
+              style: TextStyle(
+                  fontSize: 14, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );

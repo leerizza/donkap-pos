@@ -381,6 +381,26 @@ class _ProductListPageState extends State<ProductListPage> {
                                   children: [
                                     Container(
                                       decoration: BoxDecoration(
+                                        color: Colors.orange
+                                            .withValues(alpha: 0.1),
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: IconButton(
+                                        icon: const Icon(
+                                            Icons.add_box_outlined,
+                                            color: Colors.orange,
+                                            size: 20),
+                                        constraints: const BoxConstraints(),
+                                        padding: const EdgeInsets.all(8),
+                                        tooltip: 'Restock',
+                                        onPressed: () => _showRestockDialog(
+                                            context, product),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      decoration: BoxDecoration(
                                         color: AppTheme.primaryColor
                                             .withValues(alpha: 0.1),
                                         borderRadius:
@@ -447,6 +467,56 @@ class _ProductListPageState extends State<ProductListPage> {
     if (stock <= 0) return Colors.red;
     if (stock <= _lowStockThreshold) return Colors.orange;
     return Colors.green;
+  }
+
+  void _showRestockDialog(BuildContext context, Product product) {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text('Restock: ${product.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Stok sekarang: ${product.stock}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Tambah stok',
+                suffixText: 'pcs',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Batal')),
+          TextButton(
+            onPressed: () {
+              final amount = int.tryParse(controller.text) ?? 0;
+              if (amount <= 0) return;
+              final updated = Product(
+                id: product.id,
+                name: product.name,
+                barcode: product.barcode,
+                price: product.price,
+                stock: product.stock + amount,
+                category: product.category,
+              );
+              context.read<ProductBloc>().add(UpdateProduct(updated));
+              Navigator.pop(dialogCtx);
+            },
+            child: const Text('Simpan'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _confirmDelete(BuildContext context, Product product) {
