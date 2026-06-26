@@ -21,18 +21,24 @@ class ProductModel extends Product {
   @HiveField(4)
   final int stock;
 
+  @override
+  @HiveField(5)
+  final String category;
+
   const ProductModel({
     required this.id,
     required this.name,
     required this.barcode,
     required this.price,
     required this.stock,
+    this.category = '',
   }) : super(
           id: id,
           name: name,
           barcode: barcode,
           price: price,
           stock: stock,
+          category: category,
         );
 
   factory ProductModel.fromEntity(Product product) {
@@ -42,6 +48,7 @@ class ProductModel extends Product {
       barcode: product.barcode,
       price: product.price,
       stock: product.stock,
+      category: product.category,
     );
   }
 
@@ -52,6 +59,7 @@ class ProductModel extends Product {
       barcode: barcode,
       price: price,
       stock: stock,
+      category: category,
     );
   }
 }

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../bloc/product_bloc.dart';
 import '../../domain/entities/product.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_constants.dart';
 import '../../../../core/utils/app_validators.dart';
 
 class AddProductPage extends StatefulWidget {
@@ -23,6 +24,7 @@ class _AddProductPageState extends State<AddProductPage> {
   String _barcode = '';
   double _price = 0.0;
   int _stock = 0;
+  String _category = '';
 
   void _scanBarcode() async {
     final result = await context.push<String>('/scanner');
@@ -57,6 +59,7 @@ class _AddProductPageState extends State<AddProductPage> {
         barcode: _barcode,
         price: _price,
         stock: _stock,
+        category: _category,
       );
 
       context.read<ProductBloc>().add(AddProduct(product));
@@ -145,6 +148,29 @@ class _AddProductPageState extends State<AddProductPage> {
                     ),
                     validator: AppValidators.price,
                     onSaved: (value) => _price = double.parse(value!),
+                  ),
+                  const SizedBox(height: 24),
+                  const InputLabel(text: 'Kategori'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: AppConstants.productCategories.map((cat) {
+                      return ChoiceChip(
+                        label: Text(cat, style: const TextStyle(fontSize: 13)),
+                        selected: _category == cat,
+                        onSelected: (selected) =>
+                            setState(() => _category = selected ? cat : ''),
+                        selectedColor:
+                            AppTheme.primaryColor.withValues(alpha: 0.15),
+                        checkmarkColor: AppTheme.primaryColor,
+                        labelStyle: TextStyle(
+                          color: _category == cat
+                              ? AppTheme.primaryColor
+                              : Colors.black87,
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 24),
                   const InputLabel(text: 'Stok Awal'),

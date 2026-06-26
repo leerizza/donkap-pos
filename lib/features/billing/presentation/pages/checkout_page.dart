@@ -114,6 +114,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
         barcode: cartItem.product.barcode,
         price: cartItem.product.price,
         stock: newStock,
+        category: cartItem.product.category,
       )));
     }
 

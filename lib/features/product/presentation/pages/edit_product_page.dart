@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../bloc/product_bloc.dart';
 import '../../domain/entities/product.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/app_constants.dart';
 import '../../../../core/utils/app_validators.dart';
 
 class EditProductPage extends StatefulWidget {
@@ -22,6 +23,7 @@ class _EditProductPageState extends State<EditProductPage> {
   late String _name;
   late double _price;
   late int _stock;
+  late String _category;
 
   @override
   void initState() {
@@ -29,6 +31,7 @@ class _EditProductPageState extends State<EditProductPage> {
     _name = widget.product.name;
     _price = widget.product.price;
     _stock = widget.product.stock;
+    _category = widget.product.category;
   }
 
   void _submit() {
@@ -41,6 +44,7 @@ class _EditProductPageState extends State<EditProductPage> {
         barcode: widget.product.barcode,
         price: _price,
         stock: _stock,
+        category: _category,
       );
 
       context.read<ProductBloc>().add(UpdateProduct(updatedProduct));
@@ -134,6 +138,29 @@ class _EditProductPageState extends State<EditProductPage> {
                   ),
                   const SizedBox(height: 24),
 
+                  const InputLabel(text: 'Kategori'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: AppConstants.productCategories.map((cat) {
+                      return ChoiceChip(
+                        label: Text(cat, style: const TextStyle(fontSize: 13)),
+                        selected: _category == cat,
+                        onSelected: (selected) =>
+                            setState(() => _category = selected ? cat : ''),
+                        selectedColor:
+                            AppTheme.primaryColor.withValues(alpha: 0.15),
+                        checkmarkColor: AppTheme.primaryColor,
+                        labelStyle: TextStyle(
+                          color: _category == cat
+                              ? AppTheme.primaryColor
+                              : Colors.black87,
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 24),
                   const InputLabel(text: 'Stok'),
                   TextFormField(
                     initialValue: _stock.toString(),

@@ -18,6 +18,7 @@ class _ProductListPageState extends State<ProductListPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   bool _showLowStockOnly = false;
+  String? _selectedCategory;
 
   static const int _lowStockThreshold = AppConstants.lowStockThreshold;
 
@@ -161,11 +162,24 @@ class _ProductListPageState extends State<ProductListPage> {
                       (_) => setState(() => _showLowStockOnly = false));
                 }
 
+                final availableCategories = state.products
+                    .map((p) => p.category)
+                    .where((c) => c.isNotEmpty)
+                    .toSet()
+                    .toList()
+                  ..sort();
+
                 var filteredProducts = state.products
                     .where((product) =>
                         product.name.toLowerCase().contains(_searchQuery) ||
                         product.barcode.toLowerCase().contains(_searchQuery))
                     .toList();
+
+                if (_selectedCategory != null) {
+                  filteredProducts = filteredProducts
+                      .where((p) => p.category == _selectedCategory)
+                      .toList();
+                }
 
                 if (_showLowStockOnly) {
                   filteredProducts = filteredProducts
@@ -182,6 +196,41 @@ class _ProductListPageState extends State<ProductListPage> {
 
                 return Column(
                   children: [
+                    // Category filter chips
+                    if (availableCategories.isNotEmpty)
+                      SizedBox(
+                        height: 44,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                label: const Text('Semua',
+                                    style: TextStyle(fontSize: 12)),
+                                selected: _selectedCategory == null,
+                                onSelected: (_) =>
+                                    setState(() => _selectedCategory = null),
+                              ),
+                            ),
+                            ...availableCategories.map((cat) => Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: FilterChip(
+                                    label: Text(cat,
+                                        style: const TextStyle(fontSize: 12)),
+                                    selected: _selectedCategory == cat,
+                                    onSelected: (_) => setState(() =>
+                                        _selectedCategory =
+                                            _selectedCategory == cat
+                                                ? null
+                                                : cat),
+                                  ),
+                                )),
+                          ],
+                        ),
+                      ),
+
                     // Low stock filter chip
                     if (lowStockCount > 0)
                       Padding(
@@ -258,7 +307,9 @@ class _ProductListPageState extends State<ProductListPage> {
                                             color: Colors.grey[600]),
                                       ),
                                       const SizedBox(height: 6),
-                                      Row(
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 4,
                                         children: [
                                           Container(
                                             padding: const EdgeInsets.symmetric(
@@ -290,18 +341,34 @@ class _ProductListPageState extends State<ProductListPage> {
                                             ),
                                           ),
                                           if (product.stock <= _lowStockThreshold)
-                                            Padding(
-                                              padding: const EdgeInsets.only(
-                                                  left: 6),
+                                            Text(
+                                              product.stock <= 0
+                                                  ? 'Habis!'
+                                                  : 'Menipis!',
+                                              style: const TextStyle(
+                                                  fontSize: 11,
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.bold),
+                                            ),
+                                          if (product.category.isNotEmpty)
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: Colors.indigo
+                                                    .withValues(alpha: 0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
                                               child: Text(
-                                                product.stock <= 0
-                                                    ? 'Habis!'
-                                                    : 'Menipis!',
-                                                style: const TextStyle(
-                                                    fontSize: 11,
-                                                    color: Colors.red,
-                                                    fontWeight:
-                                                        FontWeight.bold),
+                                                product.category,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.indigo[600],
+                                                ),
                                               ),
                                             ),
                                         ],
