@@ -40,6 +40,7 @@ dependencies:
   file_picker: ^8.0.0
   excel: ^4.0.3
   pdf: ^3.11.0
+  fl_chart: ^0.69.0
   
   # Scanner & Printer
   pretty_qr_code: ^3.3.0

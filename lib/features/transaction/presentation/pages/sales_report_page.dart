@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
@@ -15,10 +16,12 @@ class SalesReportPage extends StatefulWidget {
   State<SalesReportPage> createState() => _SalesReportPageState();
 }
 
-class _SalesReportPageState extends State<SalesReportPage> {
+class _SalesReportPageState extends State<SalesReportPage>
+    with SingleTickerProviderStateMixin {
   _DateFilter _filter = _DateFilter.today;
   bool _exporting = false;
   final _exportService = ExportService();
+  late TabController _tabController;
 
   static const _filterLabels = {
     _DateFilter.today: 'Hari Ini',
@@ -33,7 +36,14 @@ class _SalesReportPageState extends State<SalesReportPage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     context.read<TransactionBloc>().add(const LoadTransactionsEvent());
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _showExportSheet() async {
@@ -220,35 +230,59 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
 
-              // Transaction list
+              TabBar(
+                controller: _tabController,
+                labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 13),
+                unselectedLabelStyle:
+                    const TextStyle(fontSize: 13),
+                tabs: const [
+                  Tab(text: 'Transaksi'),
+                  Tab(text: 'Analitik'),
+                ],
+              ),
+
               Expanded(
-                child: filtered.isEmpty
-                    ? const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.receipt_long_outlined,
-                                size: 64, color: Colors.grey),
-                            SizedBox(height: 12),
-                            Text('Belum ada transaksi',
-                                style: TextStyle(color: Colors.grey)),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          return _TransactionCard(
-                            transaction: filtered[index],
-                            formatter: _rupiahFormatter,
-                            onDelete: () =>
-                                _confirmDelete(context, filtered[index].id),
-                          );
-                        },
-                      ),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    // Tab 0 — Transaksi
+                    filtered.isEmpty
+                        ? const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.receipt_long_outlined,
+                                    size: 64, color: Colors.grey),
+                                SizedBox(height: 12),
+                                Text('Belum ada transaksi',
+                                    style: TextStyle(color: Colors.grey)),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                            itemCount: filtered.length,
+                            itemBuilder: (context, index) {
+                              return _TransactionCard(
+                                transaction: filtered[index],
+                                formatter: _rupiahFormatter,
+                                onDelete: () => _confirmDelete(
+                                    context, filtered[index].id),
+                              );
+                            },
+                          ),
+
+                    // Tab 1 — Analitik
+                    _AnalyticsView(
+                      filtered: filtered,
+                      filter: _filter,
+                      formatter: _rupiahFormatter,
+                    ),
+                  ],
+                ),
               ),
             ],
           );
@@ -440,6 +474,367 @@ class _TransactionCard extends StatelessWidget {
             ),
           );
         }).toList(),
+      ),
+    );
+  }
+}
+
+// ─── Analytics Tab ────────────────────────────────────────────────────────────
+
+class _AnalyticsView extends StatelessWidget {
+  final List<Transaction> filtered;
+  final _DateFilter filter;
+  final NumberFormat formatter;
+
+  const _AnalyticsView({
+    required this.filtered,
+    required this.filter,
+    required this.formatter,
+  });
+
+  static const _barColor = Color(0xFF6366F1);
+  static const _emptyBarColor = Color(0xFFE5E7EB);
+
+  @override
+  Widget build(BuildContext context) {
+    if (filtered.isEmpty) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.bar_chart, size: 64, color: Colors.grey),
+            SizedBox(height: 12),
+            Text('Belum ada data', style: TextStyle(color: Colors.grey)),
+          ],
+        ),
+      );
+    }
+
+    final chartInfo = _buildChartInfo();
+    final topProducts = _buildTopProducts();
+    final maxY = chartInfo.groups
+        .map((g) => g.barRods.first.toY)
+        .fold(0.0, (a, b) => a > b ? a : b);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      children: [
+        // ── Bar chart ──────────────────────────────
+        Text(chartInfo.title,
+            style: const TextStyle(
+                fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxY == 0 ? 1 : maxY * 1.25,
+              barGroups: chartInfo.groups,
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                getDrawingHorizontalLine: (_) =>
+                    FlLine(color: Colors.grey[200]!, strokeWidth: 1),
+              ),
+              borderData: FlBorderData(show: false),
+              titlesData: FlTitlesData(
+                topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false)),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 56,
+                    getTitlesWidget: (v, _) => Text(
+                      _compactRp(v),
+                      style: const TextStyle(
+                          fontSize: 9, color: Colors.grey),
+                    ),
+                  ),
+                ),
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (v, _) {
+                      final label = chartInfo.xLabel(v.toInt());
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(label,
+                            style: const TextStyle(
+                                fontSize: 9, color: Colors.grey)),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipColor: (_) => Colors.black87,
+                  getTooltipItem: (_, __, rod, ___) => BarTooltipItem(
+                    formatter.format(rod.toY),
+                    const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // ── Top products ───────────────────────────
+        const Text('Produk Terlaris',
+            style:
+                TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        const Text('berdasarkan qty terjual',
+            style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 12),
+        if (topProducts.isEmpty)
+          const Text('Tidak ada data produk.',
+              style: TextStyle(color: Colors.grey))
+        else
+          ...topProducts.take(7).toList().asMap().entries.map((e) {
+            final rank = e.key + 1;
+            final name = e.value.key;
+            final qty = e.value.value;
+            final revenue = _productRevenue(name);
+            final maxQty = topProducts.first.value;
+            return _TopProductRow(
+              rank: rank,
+              name: name,
+              qty: qty,
+              revenue: revenue,
+              maxQty: maxQty,
+              formatter: formatter,
+            );
+          }),
+      ],
+    );
+  }
+
+  // ── Helpers ─────────────────────────────────────
+
+  _ChartInfo _buildChartInfo() {
+    final now = DateTime.now();
+
+    switch (filter) {
+      case _DateFilter.today:
+        final Map<int, double> hourly = {};
+        for (final tx in filtered) {
+          final h = tx.createdAt.hour;
+          hourly[h] = (hourly[h] ?? 0) + tx.totalAmount;
+        }
+        final hours = hourly.keys.toList()..sort();
+        return _ChartInfo(
+          title: 'Penjualan per Jam',
+          groups: hours
+              .asMap()
+              .entries
+              .map((e) => _rod(e.key, hourly[e.value]!))
+              .toList(),
+          xLabel: (i) => i < hours.length ? '${hours[i]}h' : '',
+        );
+
+      case _DateFilter.week:
+        final Map<int, double> daily = {};
+        for (final tx in filtered) {
+          final diff = now.difference(tx.createdAt).inDays;
+          if (diff >= 0 && diff < 7) {
+            final idx = 6 - diff;
+            daily[idx] = (daily[idx] ?? 0) + tx.totalAmount;
+          }
+        }
+        final dayNames = List.generate(7, (i) {
+          final d = now.subtract(Duration(days: 6 - i));
+          return DateFormat('E', 'id_ID').format(d);
+        });
+        return _ChartInfo(
+          title: 'Penjualan 7 Hari Terakhir',
+          groups: List.generate(7, (i) => _rod(i, daily[i] ?? 0)),
+          xLabel: (i) => i < dayNames.length ? dayNames[i] : '',
+        );
+
+      case _DateFilter.month:
+        final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+        final Map<int, double> daily = {};
+        for (final tx in filtered) {
+          final d = tx.createdAt.day;
+          daily[d] = (daily[d] ?? 0) + tx.totalAmount;
+        }
+        return _ChartInfo(
+          title: 'Penjualan Bulan Ini',
+          groups: List.generate(
+              daysInMonth, (i) => _rod(i, daily[i + 1] ?? 0)),
+          xLabel: (i) => (i + 1) % 5 == 1 ? '${i + 1}' : '',
+        );
+
+      case _DateFilter.all:
+        final Map<String, double> monthly = {};
+        for (final tx in filtered) {
+          final key =
+              '${tx.createdAt.year}-${tx.createdAt.month.toString().padLeft(2, '0')}';
+          monthly[key] = (monthly[key] ?? 0) + tx.totalAmount;
+        }
+        final keys = monthly.keys.toList()..sort();
+        return _ChartInfo(
+          title: 'Penjualan per Bulan',
+          groups: keys
+              .asMap()
+              .entries
+              .map((e) => _rod(e.key, monthly[e.value]!))
+              .toList(),
+          xLabel: (i) {
+            if (i >= keys.length) return '';
+            final parts = keys[i].split('-');
+            return DateFormat('MMM', 'id_ID')
+                .format(DateTime(int.parse(parts[0]), int.parse(parts[1])));
+          },
+        );
+    }
+  }
+
+  List<MapEntry<String, int>> _buildTopProducts() {
+    final Map<String, int> qty = {};
+    for (final tx in filtered) {
+      for (final item in tx.items) {
+        qty[item.productName] = (qty[item.productName] ?? 0) + item.quantity;
+      }
+    }
+    return qty.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+  }
+
+  double _productRevenue(String name) {
+    double total = 0;
+    for (final tx in filtered) {
+      for (final item in tx.items) {
+        if (item.productName == name) total += item.total;
+      }
+    }
+    return total;
+  }
+
+  BarChartGroupData _rod(int x, double y) => BarChartGroupData(
+        x: x,
+        barRods: [
+          BarChartRodData(
+            toY: y,
+            color: y > 0 ? _barColor : _emptyBarColor,
+            width: 12,
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(4)),
+          ),
+        ],
+      );
+
+  String _compactRp(double v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}jt';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}rb';
+    return v.toStringAsFixed(0);
+  }
+}
+
+class _ChartInfo {
+  final String title;
+  final List<BarChartGroupData> groups;
+  final String Function(int) xLabel;
+
+  const _ChartInfo({
+    required this.title,
+    required this.groups,
+    required this.xLabel,
+  });
+}
+
+class _TopProductRow extends StatelessWidget {
+  final int rank;
+  final String name;
+  final int qty;
+  final double revenue;
+  final int maxQty;
+  final NumberFormat formatter;
+
+  const _TopProductRow({
+    required this.rank,
+    required this.name,
+    required this.qty,
+    required this.revenue,
+    required this.maxQty,
+    required this.formatter,
+  });
+
+  static const _rankColors = [
+    Color(0xFFFFD700),
+    Color(0xFFC0C0C0),
+    Color(0xFFCD7F32),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final barFraction = maxQty > 0 ? qty / maxQty : 0.0;
+    final rankColor = rank <= 3 ? _rankColors[rank - 1] : Colors.grey[300]!;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+                color: rankColor.withValues(alpha: 0.2),
+                shape: BoxShape.circle),
+            alignment: Alignment.center,
+            child: Text('$rank',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: rankColor == Colors.grey[300]
+                        ? Colors.grey
+                        : rankColor.withValues(alpha: 0.9))),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                        child: Text(name,
+                            style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis)),
+                    Text('$qty pcs',
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: barFraction,
+                    minHeight: 6,
+                    backgroundColor: Colors.grey[100],
+                    color: const Color(0xFF6366F1),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(formatter.format(revenue),
+                    style: const TextStyle(
+                        fontSize: 11, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
