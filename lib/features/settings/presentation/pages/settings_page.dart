@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:app_settings/app_settings.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/backup_service.dart';
 import '../../../shop/presentation/bloc/shop_bloc.dart';
 import '../bloc/printer_bloc.dart';
 import '../bloc/printer_event.dart';
@@ -17,11 +18,58 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  final _backupService = BackupService();
+  bool _backupLoading = false;
+  bool _restoreLoading = false;
+
   @override
   void initState() {
     super.initState();
-    // Re-initialize printer state whenever settings page opens
     context.read<PrinterBloc>().add(InitPrinterEvent());
+  }
+
+  Future<void> _onExport() async {
+    setState(() => _backupLoading = true);
+    try {
+      await _backupService.exportBackup();
+    } finally {
+      if (mounted) setState(() => _backupLoading = false);
+    }
+  }
+
+  Future<void> _onImport() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Pulihkan Data'),
+        content: const Text(
+            'Data saat ini (produk, transaksi, info toko) akan diganti dengan data dari file backup. Lanjutkan?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Batal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child:
+                  const Text('Lanjutkan', style: TextStyle(color: Colors.red))),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _restoreLoading = true);
+    final result = await _backupService.importBackup();
+    if (!mounted) return;
+    setState(() => _restoreLoading = false);
+
+    if (result == 'ok') {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Data berhasil dipulihkan'),
+          backgroundColor: Colors.green));
+    } else if (result != 'batal') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(result), backgroundColor: Colors.red));
+    }
   }
 
   @override
@@ -206,6 +254,51 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Text(
                 "To connect a new device, tap on the Settings gear to pair in phone's Bluetooth settings, then return and hit Refresh.",
+                style: TextStyle(
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey[500]),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Data Section
+            _buildSectionHeader('Data'),
+            _buildListGroup(
+              children: [
+                _buildListItem(
+                  icon: Icons.upload_file,
+                  title: 'Backup Data',
+                  subtitle: 'Ekspor produk & transaksi ke file JSON',
+                  trailingWidget: _backupLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : null,
+                  onTap: _backupLoading ? null : _onExport,
+                ),
+                _buildDivider(),
+                _buildListItem(
+                  icon: Icons.download_for_offline,
+                  title: 'Pulihkan Data',
+                  subtitle: 'Impor dari file backup (.json)',
+                  trailingWidget: _restoreLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : null,
+                  onTap: _restoreLoading ? null : _onImport,
+                ),
+              ],
+            ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              child: Text(
+                'Simpan file backup di Google Drive atau WhatsApp agar data aman jika HP hilang.',
                 style: TextStyle(
                     fontSize: 11,
                     fontStyle: FontStyle.italic,
