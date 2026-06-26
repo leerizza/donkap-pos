@@ -171,15 +171,28 @@ class PrinterHelper {
     for (var item in items) {
       String name = item['name'].toString();
       String qty = item['qty'].toString();
-      String price = item['price'].toString();
-      String totalItem = item['total'].toString();
+      String price = _fmtNum(item['price']);
+      String totalItem = _fmtNum(item['total']);
 
-      String prefix = '${qty}x $name';
-      if (prefix.length > 16) prefix = prefix.substring(0, 16);
-
-      String line = prefix.padRight(16) + price.padRight(8) + totalItem;
-      bytes += _textToBytes(line);
-      bytes += EscPos.lineFeed;
+      String qtyPrefix = '${qty}x ';
+      int availForName = 16 - qtyPrefix.length;
+      if (name.length <= availForName) {
+        bytes += _textToBytes((qtyPrefix + name).padRight(16) + price.padLeft(8) + totalItem.padLeft(8));
+        bytes += EscPos.lineFeed;
+      } else {
+        // First line: qty + first part of name + price + total on same line
+        bytes += _textToBytes(qtyPrefix + name.substring(0, availForName) + price.padLeft(8) + totalItem.padLeft(8));
+        bytes += EscPos.lineFeed;
+        // Remaining name wraps below, indented to align with name start
+        String indent = ' ' * qtyPrefix.length;
+        String remaining = name.substring(availForName);
+        while (remaining.isNotEmpty) {
+          int take = remaining.length > 16 ? 16 : remaining.length;
+          bytes += _textToBytes(indent + remaining.substring(0, take));
+          bytes += EscPos.lineFeed;
+          remaining = remaining.substring(take);
+        }
+      }
     }
 
     bytes += _textToBytes('--------------------------------');
@@ -188,7 +201,7 @@ class PrinterHelper {
     // Total
     bytes += EscPos.alignRight;
     bytes += EscPos.boldOn;
-    bytes += _textToBytes('TOTAL: Rp $total');
+    bytes += _textToBytes('TOTAL: Rp ${_fmtNum(total)}');
     bytes += EscPos.lineFeed;
     bytes += EscPos.boldOff;
 
@@ -197,10 +210,10 @@ class PrinterHelper {
     bytes += _textToBytes('Pembayaran: $paymentMethod');
     bytes += EscPos.lineFeed;
     if (paymentMethod == 'Tunai') {
-      bytes += _textToBytes('Diterima : Rp ${cashReceived.toStringAsFixed(0)}');
+      bytes += _textToBytes('Diterima : Rp ${_fmtNum(cashReceived)}');
       bytes += EscPos.lineFeed;
       bytes += EscPos.boldOn;
-      bytes += _textToBytes('Kembalian: Rp ${change.toStringAsFixed(0)}');
+      bytes += _textToBytes('Kembalian: Rp ${_fmtNum(change)}');
       bytes += EscPos.boldOff;
       bytes += EscPos.lineFeed;
     }
@@ -218,8 +231,12 @@ class PrinterHelper {
     await PrintBluetoothThermal.writeBytes(bytes);
   }
 
+  String _fmtNum(dynamic value) {
+    final num amount = value is num ? value : (num.tryParse(value.toString()) ?? 0);
+    return NumberFormat('#,##0', 'id_ID').format(amount);
+  }
+
   List<int> _textToBytes(String text) {
-    // Should verify encoding, but Latin-1 usually works for basic printers
     return List.from(text.codeUnits);
   }
 }

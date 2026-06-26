@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_beep/flutter_beep.dart';
 import 'package:vibration/vibration.dart';
 
 class ScannerPage extends StatefulWidget {
@@ -30,10 +31,10 @@ class _ScannerPageState extends State<ScannerPage> {
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
         _isScanned = true;
-        // Vibrate
+        FlutterBeep.beep();
         final hasVibrator = await Vibration.hasVibrator();
         if (hasVibrator == true) {
-          Vibration.vibrate();
+          Vibration.vibrate(duration: 80);
         }
 
         if (mounted) {
