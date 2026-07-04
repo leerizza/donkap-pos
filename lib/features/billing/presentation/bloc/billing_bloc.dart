@@ -19,6 +19,7 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     on<RemoveProductFromCartEvent>(_onRemoveProductFromCart);
     on<UpdateQuantityEvent>(_onUpdateQuantity);
     on<ClearCartEvent>(_onClearCart);
+    on<ApplyDiscountEvent>(_onApplyDiscount);
     on<PrintReceiptEvent>(_onPrintReceipt);
   }
 
@@ -103,6 +104,13 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
     emit(const BillingState());
   }
 
+  void _onApplyDiscount(ApplyDiscountEvent event, Emitter<BillingState> emit) {
+    emit(state.copyWith(
+      discountInput: event.input.clamp(0, double.infinity),
+      discountType: event.discountType,
+    ));
+  }
+
   Future<void> _onPrintReceipt(
       PrintReceiptEvent event, Emitter<BillingState> emit) async {
     final printerHelper = PrinterHelper();
@@ -150,7 +158,9 @@ class BillingBloc extends Bloc<BillingEvent, BillingState> {
           invoiceNumber: event.invoiceNumber,
           paymentMethod: event.paymentMethod,
           cashReceived: event.cashReceived,
-          change: event.change);
+          change: event.change,
+          discountAmount: event.discountAmount,
+          subtotal: state.subtotal);
 
       emit(state.copyWith(isPrinting: false, printSuccess: true));
     } catch (e) {

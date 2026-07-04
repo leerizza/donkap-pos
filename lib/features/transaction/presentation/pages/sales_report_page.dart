@@ -427,21 +427,27 @@ class _TransactionCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: transaction.paymentMethod == PaymentMethod.cash
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : Colors.blue.withValues(alpha: 0.1),
+                    color: switch (transaction.paymentMethod) {
+                      PaymentMethod.cash => Colors.green.withValues(alpha: 0.1),
+                      PaymentMethod.transfer => Colors.orange.withValues(alpha: 0.1),
+                      PaymentMethod.qris => Colors.blue.withValues(alpha: 0.1),
+                    },
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    transaction.paymentMethod == PaymentMethod.cash
-                        ? 'Tunai'
-                        : 'QRIS',
+                    switch (transaction.paymentMethod) {
+                      PaymentMethod.cash => 'Tunai',
+                      PaymentMethod.transfer => 'Transfer',
+                      PaymentMethod.qris => 'QRIS',
+                    },
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
-                      color: transaction.paymentMethod == PaymentMethod.cash
-                          ? Colors.green[700]
-                          : Colors.blue[700],
+                      color: switch (transaction.paymentMethod) {
+                        PaymentMethod.cash => Colors.green[700],
+                        PaymentMethod.transfer => Colors.orange[700],
+                        PaymentMethod.qris => Colors.blue[700],
+                      },
                     ),
                   ),
                 ),

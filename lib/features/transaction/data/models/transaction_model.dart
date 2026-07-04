@@ -29,6 +29,9 @@ class TransactionModel extends Transaction {
   @HiveField(6)
   final double? cashReceivedRaw;
 
+  @HiveField(7)
+  final double? discountAmountRaw;
+
   TransactionModel({
     required this.id,
     required this.createdAtMs,
@@ -37,6 +40,7 @@ class TransactionModel extends Transaction {
     this.invoiceNumberRaw,
     this.paymentMethodRaw,
     this.cashReceivedRaw,
+    this.discountAmountRaw,
   }) : super(
           id: id,
           invoiceNumber: invoiceNumberRaw ?? '',
@@ -45,8 +49,11 @@ class TransactionModel extends Transaction {
           totalAmount: totalAmount,
           paymentMethod: paymentMethodRaw == 'cash'
               ? PaymentMethod.cash
-              : PaymentMethod.qris,
+              : paymentMethodRaw == 'transfer'
+                  ? PaymentMethod.transfer
+                  : PaymentMethod.qris,
           cashReceived: cashReceivedRaw ?? 0,
+          discountAmount: discountAmountRaw ?? 0,
         );
 
   factory TransactionModel.fromEntity(Transaction tx) {
@@ -58,6 +65,7 @@ class TransactionModel extends Transaction {
       invoiceNumberRaw: tx.invoiceNumber,
       paymentMethodRaw: tx.paymentMethod.name,
       cashReceivedRaw: tx.cashReceived,
+      discountAmountRaw: tx.discountAmount,
     );
   }
 }

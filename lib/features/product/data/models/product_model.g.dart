@@ -22,7 +22,7 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       barcode: fields[2] as String,
       price: fields[3] as double,
       stock: fields[4] as int,
-      category: fields[5] as String? ?? '',
+      category: fields[5] as String,
     );
   }
 

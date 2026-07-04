@@ -27,7 +27,9 @@ class CheckoutPage extends StatefulWidget {
 class _CheckoutPageState extends State<CheckoutPage> {
   PaymentMethod _paymentMethod = PaymentMethod.cash;
   final _cashController = TextEditingController();
+  final _discountController = TextEditingController();
   double _cashReceived = 0;
+  DiscountType _discountType = DiscountType.nominal;
 
   static final _fmt =
       NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
@@ -35,6 +37,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   @override
   void dispose() {
     _cashController.dispose();
+    _discountController.dispose();
     super.dispose();
   }
 
@@ -103,6 +106,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
       totalAmount: billingState.totalAmount,
       paymentMethod: _paymentMethod,
       cashReceived: _cashReceived,
+      discountAmount: billingState.discountAmount,
     );
 
     for (final cartItem in billingState.cartItems) {
@@ -225,9 +229,18 @@ class _CheckoutPageState extends State<CheckoutPage> {
     }
 
     buf.writeln(sep);
+    if (transaction.discountAmount > 0) {
+      final subtotal = transaction.totalAmount + transaction.discountAmount;
+      buf.writeln('Subtotal : ${_fmt.format(subtotal)}');
+      buf.writeln('Diskon   : -${_fmt.format(transaction.discountAmount)}');
+    }
     buf.writeln('*TOTAL: ${_fmt.format(transaction.totalAmount)}*');
-    buf.writeln(
-        'Pembayaran: ${transaction.paymentMethod == PaymentMethod.cash ? 'Tunai' : 'QRIS'}');
+    final methodLabel = switch (transaction.paymentMethod) {
+      PaymentMethod.cash => 'Tunai',
+      PaymentMethod.transfer => 'Transfer',
+      PaymentMethod.qris => 'QRIS',
+    };
+    buf.writeln('Pembayaran: $methodLabel');
     if (transaction.paymentMethod == PaymentMethod.cash) {
       buf.writeln('Diterima : ${_fmt.format(transaction.cashReceived)}');
       buf.writeln('*Kembalian: ${_fmt.format(change)}*');
@@ -274,10 +287,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
             return BlocBuilder<ShopBloc, ShopState>(
               builder: (context, shopState) {
                 String upiId = '';
-                String shopName = 'Shop';
                 if (shopState is ShopLoaded) {
                   upiId = shopState.shop.upiId;
-                  shopName = shopState.shop.name;
                 }
 
                 final double change = _paymentMethod == PaymentMethod.cash
@@ -396,7 +407,19 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         }),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _PaymentMethodButton(
+                                        label: 'Transfer',
+                                        icon: Icons.account_balance_outlined,
+                                        selected: _paymentMethod ==
+                                            PaymentMethod.transfer,
+                                        onTap: () => setState(() {
+                                          _paymentMethod = PaymentMethod.transfer;
+                                        }),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
                                     Expanded(
                                       child: _PaymentMethodButton(
                                         label: 'QRIS',
@@ -409,6 +432,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(height: 12),
+
+                                // Discount section
+                                _DiscountSection(
+                                  controller: _discountController,
+                                  discountType: _discountType,
+                                  onTypeChanged: (type) {
+                                    setState(() => _discountType = type);
+                                    final input = double.tryParse(_discountController.text) ?? 0;
+                                    context.read<BillingBloc>().add(ApplyDiscountEvent(input, type));
+                                  },
+                                  onValueChanged: (val) {
+                                    context.read<BillingBloc>().add(ApplyDiscountEvent(val, _discountType));
+                                  },
                                 ),
                                 const SizedBox(height: 12),
 
@@ -487,6 +525,25 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                 ],
 
                                 const SizedBox(height: 8),
+                                // Subtotal & discount summary
+                                if (billingState.discountAmount > 0) ...[
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Subtotal', style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                                      Text(_fmt.format(billingState.subtotal), style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text('Diskon', style: TextStyle(fontSize: 13, color: Colors.red[400])),
+                                      Text('-${_fmt.format(billingState.discountAmount)}', style: TextStyle(fontSize: 13, color: Colors.red[400])),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 6),
+                                ],
                                 // Grand Total
                                 Row(
                                   mainAxisAlignment:
@@ -525,12 +582,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
                                         address2: shopState.shop.addressLine2,
                                         phone: shopState.shop.phoneNumber,
                                         footer: shopState.shop.footerText,
-                                        paymentMethod:
-                                            _paymentMethod == PaymentMethod.cash
-                                                ? 'Tunai'
-                                                : 'QRIS',
+                                        paymentMethod: switch (_paymentMethod) {
+                                          PaymentMethod.cash => 'Tunai',
+                                          PaymentMethod.transfer => 'Transfer',
+                                          PaymentMethod.qris => 'QRIS',
+                                        },
                                         cashReceived: _cashReceived,
-                                        change: change));
+                                        change: change,
+                                        discountAmount: billingState.discountAmount));
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -609,6 +668,63 @@ class _CheckoutPageState extends State<CheckoutPage> {
           color: isSubtitle ? Colors.grey[500] : Colors.black87,
         ),
       ),
+    );
+  }
+}
+
+class _DiscountSection extends StatelessWidget {
+  final TextEditingController controller;
+  final DiscountType discountType;
+  final ValueChanged<DiscountType> onTypeChanged;
+  final ValueChanged<double> onValueChanged;
+
+  const _DiscountSection({
+    required this.controller,
+    required this.discountType,
+    required this.onTypeChanged,
+    required this.onValueChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).primaryColor;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: TextFormField(
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+            decoration: InputDecoration(
+              labelText: 'Diskon',
+              prefixText: discountType == DiscountType.nominal ? 'Rp ' : '',
+              suffixText: discountType == DiscountType.percent ? '%' : '',
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            ),
+            onChanged: (v) => onValueChanged(double.tryParse(v) ?? 0),
+          ),
+        ),
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: () => onTypeChanged(
+            discountType == DiscountType.nominal ? DiscountType.percent : DiscountType.nominal,
+          ),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: color, width: 1.2),
+            ),
+            child: Text(
+              discountType == DiscountType.nominal ? 'Rp' : '%',
+              style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 14),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

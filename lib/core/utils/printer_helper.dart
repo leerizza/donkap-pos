@@ -115,6 +115,8 @@ class PrinterHelper {
     String paymentMethod = 'QRIS',
     double cashReceived = 0,
     double change = 0,
+    double discountAmount = 0,
+    double subtotal = 0,
   }) async {
     if (!_isConnected) return;
 
@@ -197,6 +199,15 @@ class PrinterHelper {
 
     bytes += _textToBytes('--------------------------------');
     bytes += EscPos.lineFeed;
+
+    // Subtotal & discount
+    bytes += EscPos.alignLeft;
+    if (discountAmount > 0) {
+      bytes += _textToBytes('Subtotal : Rp ${_fmtNum(subtotal)}');
+      bytes += EscPos.lineFeed;
+      bytes += _textToBytes('Diskon   : Rp ${_fmtNum(discountAmount)}');
+      bytes += EscPos.lineFeed;
+    }
 
     // Total
     bytes += EscPos.alignRight;

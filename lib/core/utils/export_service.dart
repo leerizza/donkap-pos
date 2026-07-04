@@ -48,8 +48,11 @@ class ExportService {
         IntCellValue(i + 1),
         TextCellValue(tx.invoiceNumber),
         TextCellValue(_dateFmt.format(tx.createdAt)),
-        TextCellValue(
-            tx.paymentMethod == PaymentMethod.cash ? 'Tunai' : 'QRIS'),
+        TextCellValue(switch (tx.paymentMethod) {
+          PaymentMethod.cash => 'Tunai',
+          PaymentMethod.transfer => 'Transfer',
+          PaymentMethod.qris => 'QRIS',
+        }),
         IntCellValue(totalItems),
         DoubleCellValue(tx.totalAmount),
       ]);
@@ -162,9 +165,11 @@ class ExportService {
                     _td('${i + 1}'),
                     _td(tx.invoiceNumber),
                     _td(_dateFmt.format(tx.createdAt)),
-                    _td(tx.paymentMethod == PaymentMethod.cash
-                        ? 'Tunai'
-                        : 'QRIS'),
+                    _td(switch (tx.paymentMethod) {
+                      PaymentMethod.cash => 'Tunai',
+                      PaymentMethod.transfer => 'Transfer',
+                      PaymentMethod.qris => 'QRIS',
+                    }),
                     _td('$itemCount'),
                     _td(_rupiah.format(tx.totalAmount), alignRight: true),
                   ],

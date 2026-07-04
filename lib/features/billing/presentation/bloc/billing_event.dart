@@ -37,6 +37,14 @@ class UpdateQuantityEvent extends BillingEvent {
 
 class ClearCartEvent extends BillingEvent {}
 
+class ApplyDiscountEvent extends BillingEvent {
+  final double input;
+  final DiscountType discountType;
+  const ApplyDiscountEvent(this.input, this.discountType);
+  @override
+  List<Object> get props => [input, discountType];
+}
+
 class PrintReceiptEvent extends BillingEvent {
   final String shopName;
   final String address1;
@@ -48,6 +56,8 @@ class PrintReceiptEvent extends BillingEvent {
   final double cashReceived;
   final double change;
 
+  final double discountAmount;
+
   const PrintReceiptEvent({
     required this.shopName,
     required this.address1,
@@ -58,9 +68,10 @@ class PrintReceiptEvent extends BillingEvent {
     this.paymentMethod = 'QRIS',
     this.cashReceived = 0,
     this.change = 0,
+    this.discountAmount = 0,
   });
 
   @override
   List<Object> get props =>
-      [shopName, address1, address2, phone, footer, invoiceNumber, paymentMethod, cashReceived, change];
+      [shopName, address1, address2, phone, footer, invoiceNumber, paymentMethod, cashReceived, change, discountAmount];
 }
