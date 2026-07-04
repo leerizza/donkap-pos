@@ -42,8 +42,9 @@ Each feature: `domain/` (entities, repos, usecases) → `data/` (models, repo_im
 | 1 | ShopModel |
 | 2 | TransactionItemModel |
 | 3 | TransactionModel |
+| 4 | StockAdjustmentModel |
 
-Next available typeId: **4**
+Next available typeId: **5**
 
 ### After adding/changing Hive models
 ```bash

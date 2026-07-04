@@ -68,6 +68,13 @@ class _ProductListPageState extends State<ProductListPage> {
         title: const Text('Product Management',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined),
+            tooltip: 'Stock Opname',
+            onPressed: () => context.push('/stock-opname'),
+          ),
+        ],
       ),
       body: Column(
         children: [

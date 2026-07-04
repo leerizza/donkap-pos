@@ -10,6 +10,7 @@ import 'features/shop/presentation/bloc/shop_bloc.dart';
 import 'features/settings/presentation/bloc/printer_bloc.dart';
 import 'features/settings/presentation/bloc/printer_event.dart';
 import 'features/transaction/presentation/bloc/transaction_bloc.dart';
+import 'features/stock_opname/presentation/bloc/stock_adjustment_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -36,6 +37,8 @@ class MyApp extends StatelessWidget {
             create: (context) => di.sl<PrinterBloc>()..add(InitPrinterEvent())),
         BlocProvider<TransactionBloc>(
             create: (context) => di.sl<TransactionBloc>()),
+        BlocProvider<StockAdjustmentBloc>(
+            create: (context) => di.sl<StockAdjustmentBloc>()),
       ],
       child: MaterialApp.router(
         title: 'Donkap POS',

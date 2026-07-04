@@ -14,6 +14,10 @@ import '../../features/transaction/data/repositories/transaction_repository_impl
 import '../../features/transaction/domain/repositories/transaction_repository.dart';
 import '../../features/transaction/domain/usecases/transaction_usecases.dart';
 import '../../features/transaction/presentation/bloc/transaction_bloc.dart';
+import '../../features/stock_opname/data/repositories/stock_adjustment_repository_impl.dart';
+import '../../features/stock_opname/domain/repositories/stock_adjustment_repository.dart';
+import '../../features/stock_opname/domain/usecases/stock_adjustment_usecases.dart';
+import '../../features/stock_opname/presentation/bloc/stock_adjustment_bloc.dart';
 
 final sl = GetIt.instance;
 
@@ -84,5 +88,20 @@ Future<void> init() async {
 
   sl.registerLazySingleton<TransactionRepository>(
     () => TransactionRepositoryImpl(),
+  );
+
+  // Features - Stock Opname
+  sl.registerFactory(
+    () => StockAdjustmentBloc(
+      getStockAdjustmentsUseCase: sl(),
+      saveStockAdjustmentUseCase: sl(),
+    ),
+  );
+
+  sl.registerLazySingleton(() => GetStockAdjustmentsUseCase(sl()));
+  sl.registerLazySingleton(() => SaveStockAdjustmentUseCase(sl()));
+
+  sl.registerLazySingleton<StockAdjustmentRepository>(
+    () => StockAdjustmentRepositoryImpl(),
   );
 }

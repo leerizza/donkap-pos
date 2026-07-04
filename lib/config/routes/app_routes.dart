@@ -9,6 +9,7 @@ import '../../features/billing/presentation/pages/scanner_page.dart';
 import '../../features/billing/presentation/pages/checkout_page.dart';
 import '../../features/product/domain/entities/product.dart';
 import '../../features/transaction/presentation/pages/sales_report_page.dart';
+import '../../features/stock_opname/presentation/pages/stock_opname_page.dart';
 
 final router = GoRouter(
   initialLocation: '/',
@@ -59,6 +60,10 @@ final router = GoRouter(
     GoRoute(
       path: '/report',
       builder: (context, state) => const SalesReportPage(),
+    ),
+    GoRoute(
+      path: '/stock-opname',
+      builder: (context, state) => const StockOpnamePage(),
     ),
   ],
 );
